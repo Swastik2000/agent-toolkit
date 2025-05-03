@@ -1,9 +1,11 @@
+from typing import List, Dict, Any, Optional
 from mcp.server.fastmcp import FastMCP
 from tools import (
     search_assets,
     get_assets_by_dsl,
     traverse_lineage,
     update_assets,
+    create_custom_metadata,
     UpdatableAttribute,
     CertificateStatus,
     UpdatableAsset,
@@ -376,3 +378,105 @@ def update_assets_tool(
         )
     except ValueError as e:
         return {"updated_count": 0, "errors": [str(e)]}
+
+
+@mcp.tool()
+def create_custom_metadata_tool(
+    display_name: str,
+    attributes: List[Dict[str, Any]],
+    description: Optional[str] = None,
+    emoji: Optional[str] = None,
+    logo_url: Optional[str] = None,
+    locked: bool = False,
+):
+    """
+    Create a custom metadata definition in Atlan.
+
+    Args:
+        display_name (str): Display name for the custom metadata
+        attributes (List[Dict[str, Any]]): List of attribute definitions. Each attribute should have:
+            - display_name (str): Display name for the attribute
+            - attribute_type (str): Type of the attribute (from AtlanCustomAttributePrimitiveType)
+            - description (str, optional): Description of the attribute
+            - multi_valued (bool, optional): Whether the attribute can have multiple values
+            - options_name (str, optional): Name of options for enumerated types
+        description (str, optional): Description of the custom metadata
+        emoji (str, optional): Emoji to use as the logo
+        logo_url (str, optional): URL to use for the logo
+        locked (bool, optional): Whether the custom metadata definition should be locked
+
+    Returns:
+        Dict[str, Any]: Response containing:
+            - created: Boolean indicating if creation was successful 
+            - guid: GUID of the created custom metadata definition
+            - error: Error message if creation failed
+
+    Examples:
+        # Create RACI custom metadata with descriptions
+        result = create_custom_metadata_tool(
+            display_name="RACI",
+            description="RACI matrix for data assets",
+            attributes=[
+                {
+                    "display_name": "Responsible",
+                    "attribute_type": "USERS",
+                    "description": "Who is responsible for this asset",
+                    "multi_valued": False
+                },
+                {
+                    "display_name": "Accountable",
+                    "attribute_type": "USERS",
+                    "description": "Who is accountable for this asset",
+                    "multi_valued": False
+                },
+                {
+                    "display_name": "Consulted",
+                    "attribute_type": "GROUPS",
+                    "description": "Who should be consulted about this asset",
+                    "multi_valued": True
+                },
+                {
+                    "display_name": "Informed",
+                    "attribute_type": "GROUPS",
+                    "description": "Who should be informed about changes",
+                    "multi_valued": True
+                }
+            ],
+            emoji="👪",
+            locked=False
+        )
+
+        # Create a custom metadata with descriptions and logo URL
+        result = create_custom_metadata_tool(
+            display_name="Data Quality",
+            description="Data quality metrics and scores",
+            attributes=[
+                {
+                    "display_name": "Score",
+                    "attribute_type": "INTEGER",
+                    "description": "Overall quality score (0-100)"
+                },
+                {
+                    "display_name": "Last Check",
+                    "attribute_type": "DATE",
+                    "description": "When the quality was last assessed"
+                },
+                {
+                    "display_name": "Status",
+                    "attribute_type": "STRING",
+                    "description": "Current quality status",
+                    "options_name": "quality_status"
+                }
+            ],
+            logo_url="https://example.com/quality-logo.png",
+            locked=True
+        )
+    """
+    return create_custom_metadata(
+        display_name=display_name,
+        attributes=attributes,
+        description=description,
+        emoji=emoji,
+        logo_url=logo_url,
+        locked=locked,
+    )
