@@ -407,7 +407,7 @@ def create_custom_metadata_tool(
 
     Returns:
         Dict[str, Any]: Response containing:
-            - created: Boolean indicating if creation was successful 
+            - created: Boolean indicating if creation was successful
             - guid: GUID of the created custom metadata definition
             - error: Error message if creation failed
 

@@ -52,10 +52,7 @@ def create_custom_metadata(
         except Exception as e:
             error_msg = f"Failed to initialize Atlan client: {str(e)}"
             logger.error(error_msg)
-            return {
-                "created": False,
-                "error": error_msg
-            }
+            return {"created": False, "error": error_msg}
 
         # Create base custom metadata definition
         logger.debug("Creating base custom metadata definition")
@@ -72,37 +69,38 @@ def create_custom_metadata(
             try:
                 # Parse and validate attribute type
                 try:
-                    attr_type = getattr(AtlanCustomAttributePrimitiveType, attr["attribute_type"].upper())
-                except (AttributeError, KeyError) as e:
+                    attr_type = getattr(
+                        AtlanCustomAttributePrimitiveType,
+                        attr["attribute_type"].upper(),
+                    )
+                except (AttributeError, KeyError):
                     error_msg = f"Invalid attribute type for {attr.get('display_name', 'unknown')}: {attr.get('attribute_type')}"
                     logger.error(error_msg)
-                    return {
-                        "created": False,
-                        "error": error_msg
-                    }
-                
+                    return {"created": False, "error": error_msg}
+
                 # Create attribute definition
                 attr_def = AttributeDef.create(
                     display_name=attr["display_name"],
                     attribute_type=attr_type,
                     options_name=attr.get("options_name"),
-                    multi_valued=attr.get("multi_valued", False)
+                    multi_valued=attr.get("multi_valued", False),
                 )
 
                 # Set attribute description if provided
                 if attr.get("description"):
-                    logger.debug(f"Setting description for attribute {attr['display_name']}: {attr['description']}")
+                    logger.debug(
+                        f"Setting description for attribute {attr['display_name']}: {attr['description']}"
+                    )
                     attr_def.description = attr["description"]
 
                 attribute_defs.append(attr_def)
-                logger.debug(f"Added attribute: {attr['display_name']} of type {attr_type}")
+                logger.debug(
+                    f"Added attribute: {attr['display_name']} of type {attr_type}"
+                )
             except KeyError as e:
                 error_msg = f"Missing required field in attribute definition: {str(e)}"
                 logger.error(error_msg)
-                return {
-                    "created": False,
-                    "error": error_msg
-                }
+                return {"created": False, "error": error_msg}
 
         # Set attributes on custom metadata definition
         cm_def.attribute_defs = attribute_defs
@@ -113,67 +111,52 @@ def create_custom_metadata(
             logger.debug(f"Setting emoji logo: {emoji}")
             try:
                 cm_def.options = CustomMetadataDef.Options.with_logo_as_emoji(
-                    emoji=emoji,
-                    locked=locked
+                    emoji=emoji, locked=locked
                 )
             except Exception as e:
                 error_msg = f"Failed to set emoji logo: {str(e)}"
                 logger.error(error_msg)
-                return {
-                    "created": False,
-                    "error": error_msg
-                }
+                return {"created": False, "error": error_msg}
         elif logo_url:
             logger.debug(f"Setting logo URL: {logo_url}")
             try:
                 cm_def.options = CustomMetadataDef.Options.with_logo_from_url(
-                    url=logo_url,
-                    locked=locked
+                    url=logo_url, locked=locked
                 )
             except Exception as e:
                 error_msg = f"Failed to set logo URL: {str(e)}"
                 logger.error(error_msg)
-                return {
-                    "created": False,
-                    "error": error_msg
-                }
+                return {"created": False, "error": error_msg}
 
         # Create the custom metadata definition
         logger.info("Sending creation request to Atlan")
         try:
             response = client.typedef.create(cm_def)
-            if response and hasattr(response, 'custom_metadata_defs'):
+            if response and hasattr(response, "custom_metadata_defs"):
                 custom_metadata_defs = response.custom_metadata_defs
                 if isinstance(custom_metadata_defs, list) and custom_metadata_defs:
                     first_def = custom_metadata_defs[0]
-                    if hasattr(first_def, 'guid'):
-                        logger.info(f"Custom metadata definition created with GUID: {first_def.guid}")
-                        return {
-                            "created": True,
-                            "guid": first_def.guid
-                        }
-            
+                    if hasattr(first_def, "guid"):
+                        logger.info(
+                            f"Custom metadata definition created with GUID: {first_def.guid}"
+                        )
+                        return {"created": True, "guid": first_def.guid}
+
             # If we get here, the response didn't have the expected structure
             logger.error("Unexpected response structure")
             logger.debug(f"Response: {response}")
             return {
                 "created": False,
-                "error": "Custom metadata was created but unable to retrieve GUID"
+                "error": "Custom metadata was created but unable to retrieve GUID",
             }
         except Exception as e:
             error_msg = f"Failed to create custom metadata: {str(e)}"
             logger.error(error_msg)
             logger.debug("Custom metadata definition that failed:", cm_def)
-            return {
-                "created": False,
-                "error": error_msg
-            }
+            return {"created": False, "error": error_msg}
 
     except Exception as e:
         error_msg = f"Unexpected error creating custom metadata: {str(e)}"
         logger.error(error_msg)
         logger.exception("Exception details:")
-        return {
-            "created": False,
-            "error": error_msg
-        }
+        return {"created": False, "error": error_msg}
