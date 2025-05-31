@@ -1,5 +1,5 @@
-from typing import List, Dict, Any, Optional
-from mcp.server.fastmcp import FastMCP
+import argparse
+from fastmcp import FastMCP
 from tools import (
     search_assets,
     get_assets_by_dsl,
@@ -17,7 +17,7 @@ from tools import (
 )
 from pyatlan.model.lineage import LineageDirection
 
-mcp = FastMCP("Atlan MCP", dependencies=["pyatlan"])
+mcp = FastMCP("Atlan MCP Server", dependencies=["pyatlan", "fastmcp"])
 
 
 @mcp.tool()
@@ -114,6 +114,34 @@ def search_assets_tool(
             }
         )
 
+
+        # Search for assets using advanced operators
+        assets = search_assets(
+            conditions={
+                "name": {
+                    "operator": "startswith",
+                    "value": "prefix_",
+                    "case_insensitive": True
+                },
+                "description": {
+                    "operator": "contains",
+                    "value": "important data",
+                    "case_insensitive": True
+                },
+                "create_time": {
+                    "operator": "between",
+                    "value": [1640995200000, 1643673600000]
+                }
+            }
+        )
+
+        # Search for assets with multiple type names (OR logic)
+        assets = search_assets(
+            conditions={
+                "type_name": ["Table", "Column", "View"]  # Uses .within() for OR logic
+            }
+        )
+
         # Search for assets with compliant business policy
         assets = search_assets(
             conditions={
@@ -148,6 +176,31 @@ def search_assets_tool(
                 "guid": "has_any_value"
             },
             include_attributes=["asset_policy_guids"]
+        )
+
+        # get incident for a business policy
+         assets = search_assets(
+            conditions={
+                "asset_type": "BusinessPolicyIncident",
+                "business_policy_incident_related_policy_guids": "business_policy_guid"
+            },
+            some_conditions={
+                "certificate_status": [CertificateStatus.DRAFT.value, CertificateStatus.VERIFIED.value]
+            }
+        )
+
+        # Search for glossary terms by name and status
+        glossary_terms = search_assets(
+            asset_type="AtlasGlossaryTerm",
+            conditions={
+                "certificate_status": CertificateStatus.VERIFIED.value,
+                "name": {
+                    "operator": "contains",
+                    "value": "customer",
+                    "case_insensitive": True
+                }
+            },
+            include_attributes=["categories"]
         )
 
     """
@@ -294,11 +347,11 @@ def traverse_lineage_tool(
         )
 
     return traverse_lineage(
-        guid=guid,
+        guid=str(guid),
         direction=direction_enum,
-        depth=depth,
-        size=size,
-        immediate_neighbors=immediate_neighbors,
+        depth=int(depth),
+        size=int(size),
+        immediate_neighbors=bool(immediate_neighbors),
     )
 
 
@@ -710,3 +763,38 @@ def delete_badge_tool(guid: str):
         result = delete_badge_tool(guid="1c932bbb-fbe6-4bbc-9d0d-3df2f1fa4f81")
     """
     return delete_badge(guid=guid)
+
+def main():
+    mcp.run()
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Atlan MCP Server")
+    parser.add_argument(
+        "--transport",
+        type=str,
+        default="stdio",
+        choices=["stdio", "sse", "streamable-http"],
+        help="Transport protocol (stdio/sse/streamable-http)",
+    )
+    parser.add_argument(
+        "--host", type=str, default="0.0.0.0", help="Host to run the server on"
+    )
+    parser.add_argument(
+        "--port", type=int, default=8000, help="Port to run the server on"
+    )
+    parser.add_argument(
+        "--path", type=str, default="/", help="Path of the streamable HTTP server"
+    )
+    args = parser.parse_args()
+
+    kwargs = {"transport": args.transport}
+    if args.transport == "streamable-http" or args.transport == "sse":
+        kwargs = {
+            "transport": args.transport,
+            "host": args.host,
+            "port": args.port,
+            "path": args.path,
+        }
+    # Run the server with the specified transport and host/port/path
+    mcp.run(**kwargs)
